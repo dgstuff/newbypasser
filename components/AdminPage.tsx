@@ -1,39 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useMappings } from '../contexts/MappingsContext';
-
-const embedScript = `(function() {
-  class LbEmbed extends HTMLElement {
-    connectedCallback() {
-      const url = this.getAttribute('url');
-      if (!url) {
-        console.error('lb-embed: "url" attribute is required.');
-        this.innerHTML = '<div style="padding:1rem;color:red;background:rgba(255,0,0,0.1);border:1px solid red;font-family:sans-serif;border-radius:8px;">Error: lb-embed requires a "url" attribute.</div>';
-        return;
-      }
-      const iframe = document.createElement('iframe');
-      iframe.setAttribute('src', url);
-      iframe.setAttribute('frameborder', '0');
-      iframe.style.position = 'fixed';
-      iframe.style.top = '0';
-      iframe.style.left = '0';
-      iframe.style.width = '100vw';
-      iframe.style.height = '100vh';
-      iframe.style.zIndex = '999999';
-      this.replaceWith(iframe);
-    }
-  }
-  if (!customElements.get('lb-embed')) {
-    customElements.define('lb-embed', LbEmbed);
-  }
-})();`;
-
 
 const AdminPage: React.FC = () => {
   const { mappings, addMapping, basePath } = useMappings();
   const [path, setPath] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
-  const [scriptUrl, setScriptUrl] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState('');
+
+  const embedScript = useMemo(() => {
+    // This script will run on the user's external site.
+    // It finds all <lb-embed> tags and replaces them with an iframe
+    // that points back to THIS application.
+    return `(function() {
+      const embedAppUrl = '${basePath}';
+      class LbEmbed extends HTMLElement {
+        connectedCallback() {
+          const path = this.getAttribute('path');
+          if (!path) {
+            console.error('lb-embed: "path" attribute is required.');
+            this.innerHTML = '<div style="padding:1rem;color:red;background:rgba(255,0,0,0.1);border:1px solid red;font-family:sans-serif;border-radius:8px;">Error: lb-embed requires a "path" attribute.</div>';
+            return;
+          }
+          const iframe = document.createElement('iframe');
+          const finalUrl = new URL(path.replace(/^\\/|\\/$/g, ''), embedAppUrl).href;
+          iframe.setAttribute('src', finalUrl);
+          iframe.setAttribute('frameborder', '0');
+          iframe.style.position = 'fixed';
+          iframe.style.top = '0';
+          iframe.style.left = '0';
+          iframe.style.width = '100vw';
+          iframe.style.height = '100vh';
+          iframe.style.zIndex = '999999';
+          this.replaceWith(iframe);
+        }
+      }
+      if (!customElements.get('lb-embed')) {
+        customElements.define('lb-embed', LbEmbed);
+      }
+    })();`;
+  }, [basePath]);
+
+  const scriptTag = useMemo(() => {
+    if (!embedScript) return '';
+    const dataUrl = `data:application/javascript,${encodeURIComponent(embedScript)}`;
+    return `<script src="${dataUrl}" defer></script>`;
+  }, [embedScript]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,17 +64,8 @@ const AdminPage: React.FC = () => {
     setTargetUrl('');
   };
 
-  const generateAndCopyScript = () => {
-    if (scriptUrl) {
-      URL.revokeObjectURL(scriptUrl);
-    }
-    
-    const blob = new Blob([embedScript], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    setScriptUrl(url);
-
-    const scriptTag = `<script src="${url}" defer></script>`;
-    
+  const copyScriptToClipboard = () => {
+    if (!scriptTag) return;
     navigator.clipboard.writeText(scriptTag).then(() => {
         setCopySuccess('Copied!');
         setTimeout(() => setCopySuccess(''), 2000);
@@ -72,12 +75,11 @@ const AdminPage: React.FC = () => {
     });
   };
 
-  const fullScriptTag = scriptUrl ? `<script src="${scriptUrl}" defer></script>` : '';
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="bg-gray-800 rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Create New Mapping</h1>
+        <h1 className="text-2xl font-bold text-white mb-6">Step 1: Create an Embeddable Page</h1>
+        <p className="text-gray-400 mb-4">Define a path and the target URL you want to embed. This mapping is saved in your "backend" (this browser's local storage).</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="path" className="block text-sm font-medium text-gray-300 mb-1">Path</label>
@@ -90,7 +92,7 @@ const AdminPage: React.FC = () => {
                 id="path"
                 value={path}
                 onChange={(e) => setPath(e.target.value)}
-                placeholder="e.g., hello"
+                placeholder="e.g., my-game"
                 className="flex-1 block w-full rounded-none rounded-r-md bg-gray-900 border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-white p-2.5"
               />
             </div>
@@ -110,13 +112,13 @@ const AdminPage: React.FC = () => {
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
           >
-            Create or Update Mapping
+            Create or Update Page
           </button>
         </form>
       </div>
 
       <div className="bg-gray-800 rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-white mb-6">Current Mappings</h2>
+        <h2 className="text-2xl font-bold text-white mb-6">Your Embeddable Pages</h2>
         {mappings.length > 0 ? (
           <ul className="space-y-3">
             {mappings.map((mapping, index) => (
@@ -129,44 +131,33 @@ const AdminPage: React.FC = () => {
             ))}
           </ul>
         ) : (
-          <p className="text-gray-400">No mappings created yet.</p>
+          <p className="text-gray-400">No pages created yet.</p>
         )}
       </div>
 
       <div className="bg-gray-800 rounded-lg shadow-lg p-8">
-        <h2 className="text-2xl font-bold text-white mb-4">Embed on Your Own Site</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">Step 2: Embed on Your Website</h2>
         <p className="text-gray-300 mb-4">
-          To embed a fullscreen iframe on any website, generate a unique script URL by clicking the button below. The script is served from a secure Blob URL, which cannot be opened directly in a browser.
+          Add this single script tag to any external website. This only needs to be done once per site.
         </p>
-        <div className="flex items-center space-x-4 mb-4">
+        <div className="relative bg-gray-900 rounded-md mb-4">
+            <pre className="p-4 text-green-400 font-mono text-sm overflow-x-auto" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            <code>{scriptTag}</code>
+            </pre>
             <button
-              onClick={generateAndCopyScript}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-500"
+                onClick={copyScriptToClipboard}
+                className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-2 rounded-md text-xs"
             >
-              {scriptUrl ? 'Regenerate & Copy' : 'Generate & Copy Script Tag'}
+                {copySuccess ? 'Copied!' : 'Copy'}
             </button>
-            {copySuccess && <span className="text-green-400 transition-opacity">{copySuccess}</span>}
         </div>
         
-        {scriptUrl && (
-            <>
-            <p className="text-gray-400 mb-2">
-                Paste this script tag into your HTML, preferably just before the closing <code>&lt;/body&gt;</code> tag:
-            </p>
-            <div className="relative bg-gray-900 rounded-md">
-                <pre className="p-4 text-green-400 font-mono text-sm overflow-x-auto" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                <code>{fullScriptTag}</code>
-                </pre>
-            </div>
-            </>
-        )}
-
         <p className="text-gray-300 mt-4">
-          Once the script is included, you can use the <code>&lt;lb-embed&gt;</code> tag anywhere in your HTML body:
+          Now, use the <code>&lt;lb-embed&gt;</code> tag with the path you created in Step 1 to embed the content.
         </p>
         <div className="bg-gray-900 rounded-md p-4 mt-2">
             <pre className="text-green-400 font-mono text-sm">
-                <code>{`<lb-embed url="https://example.com"></lb-embed>`}</code>
+                <code>{`<lb-embed path="/my-game"></lb-embed>`}</code>
             </pre>
         </div>
       </div>
