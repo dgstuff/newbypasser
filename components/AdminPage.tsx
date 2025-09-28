@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState } from 'react';
 import { useMappings } from '../contexts/MappingsContext';
 
 const AdminPage: React.FC = () => {
@@ -7,45 +8,7 @@ const AdminPage: React.FC = () => {
   const [targetUrl, setTargetUrl] = useState('');
   const [copySuccess, setCopySuccess] = useState('');
 
-  const embedScript = useMemo(() => {
-    // This script will run on the user's external site.
-    // It finds all <lb-embed> tags and replaces them with an iframe
-    // that points back to THIS application.
-    return `(function() {
-      const embedAppUrl = '${basePath}';
-      class LbEmbed extends HTMLElement {
-        connectedCallback() {
-          const path = this.getAttribute('path');
-          if (!path) {
-            console.error('lb-embed: "path" attribute is required.');
-            this.innerHTML = '<div style="padding:1rem;color:red;background:rgba(255,0,0,0.1);border:1px solid red;font-family:sans-serif;border-radius:8px;">Error: lb-embed requires a "path" attribute.</div>';
-            return;
-          }
-          const iframe = document.createElement('iframe');
-          const finalUrl = new URL(path.replace(/^\\/|\\/$/g, ''), embedAppUrl).href;
-          iframe.setAttribute('src', finalUrl);
-          iframe.setAttribute('frameborder', '0');
-          iframe.style.position = 'fixed';
-          iframe.style.top = '0';
-          iframe.style.left = '0';
-          iframe.style.width = '100vw';
-          iframe.style.height = '100vh';
-          iframe.style.zIndex = '999999';
-          this.replaceWith(iframe);
-        }
-      }
-      if (!customElements.get('lb-embed')) {
-        customElements.define('lb-embed', LbEmbed);
-      }
-    })();`;
-  }, [basePath]);
-
-  const scriptTag = useMemo(() => {
-    if (!embedScript) return '';
-    const dataUrl = `data:application/javascript,${encodeURIComponent(embedScript)}`;
-    return `<script src="${dataUrl}" defer></script>`;
-  }, [embedScript]);
-
+  const scriptTag = `<script src="/embed.js" defer></script>`;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,7 +28,6 @@ const AdminPage: React.FC = () => {
   };
 
   const copyScriptToClipboard = () => {
-    if (!scriptTag) return;
     navigator.clipboard.writeText(scriptTag).then(() => {
         setCopySuccess('Copied!');
         setTimeout(() => setCopySuccess(''), 2000);
@@ -124,7 +86,7 @@ const AdminPage: React.FC = () => {
             {mappings.map((mapping, index) => (
               <li key={index} className="bg-gray-700 p-4 rounded-md flex flex-col sm:flex-row justify-between sm:items-center">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">Path: <a href={`#/${mapping.path}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{`/${mapping.path}`}</a></p>
+                  <p className="text-sm font-medium text-white truncate">Path: <a href={`/${mapping.path}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{`/${mapping.path}`}</a></p>
                   <p className="text-sm text-gray-400 truncate">Target: <a href={mapping.targetUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{mapping.targetUrl}</a></p>
                 </div>
               </li>
