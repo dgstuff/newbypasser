@@ -38,3 +38,4 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.status(200).send(scriptContent);
 }
+
