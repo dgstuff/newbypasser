@@ -27,13 +27,12 @@ const embedScript = `(function() {
   }
 })();`;
 
-const fullScriptTag = `<script>${embedScript}</script>`;
-
 
 const AdminPage: React.FC = () => {
   const { mappings, addMapping, basePath } = useMappings();
   const [path, setPath] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
+  const [scriptUrl, setScriptUrl] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,8 +52,18 @@ const AdminPage: React.FC = () => {
     setTargetUrl('');
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(fullScriptTag).then(() => {
+  const generateAndCopyScript = () => {
+    if (scriptUrl) {
+      URL.revokeObjectURL(scriptUrl);
+    }
+    
+    const blob = new Blob([embedScript], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    setScriptUrl(url);
+
+    const scriptTag = `<script src="${url}" defer></script>`;
+    
+    navigator.clipboard.writeText(scriptTag).then(() => {
         setCopySuccess('Copied!');
         setTimeout(() => setCopySuccess(''), 2000);
     }, () => {
@@ -62,6 +71,8 @@ const AdminPage: React.FC = () => {
         setTimeout(() => setCopySuccess(''), 2000);
     });
   };
+
+  const fullScriptTag = scriptUrl ? `<script src="${scriptUrl}" defer></script>` : '';
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -125,20 +136,31 @@ const AdminPage: React.FC = () => {
       <div className="bg-gray-800 rounded-lg shadow-lg p-8">
         <h2 className="text-2xl font-bold text-white mb-4">Embed on Your Own Site</h2>
         <p className="text-gray-300 mb-4">
-          To embed a fullscreen iframe on any website, copy the script below and paste it into your HTML, preferably just before the closing <code>&lt;/body&gt;</code> tag.
+          To embed a fullscreen iframe on any website, generate a unique script URL by clicking the button below. The script is served from a secure Blob URL, which cannot be opened directly in a browser.
         </p>
-        <div className="relative bg-gray-900 rounded-md">
-          <pre className="p-4 text-green-400 font-mono text-sm overflow-x-auto" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-            <code>{fullScriptTag}</code>
-          </pre>
-          <button
-            onClick={handleCopy}
-            className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white font-bold py-1 px-2 rounded-md text-xs transition-colors"
-            aria-label="Copy code snippet"
-          >
-            {copySuccess || 'Copy'}
-          </button>
+        <div className="flex items-center space-x-4 mb-4">
+            <button
+              onClick={generateAndCopyScript}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-green-500"
+            >
+              {scriptUrl ? 'Regenerate & Copy' : 'Generate & Copy Script Tag'}
+            </button>
+            {copySuccess && <span className="text-green-400 transition-opacity">{copySuccess}</span>}
         </div>
+        
+        {scriptUrl && (
+            <>
+            <p className="text-gray-400 mb-2">
+                Paste this script tag into your HTML, preferably just before the closing <code>&lt;/body&gt;</code> tag:
+            </p>
+            <div className="relative bg-gray-900 rounded-md">
+                <pre className="p-4 text-green-400 font-mono text-sm overflow-x-auto" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                <code>{fullScriptTag}</code>
+                </pre>
+            </div>
+            </>
+        )}
+
         <p className="text-gray-300 mt-4">
           Once the script is included, you can use the <code>&lt;lb-embed&gt;</code> tag anywhere in your HTML body:
         </p>
