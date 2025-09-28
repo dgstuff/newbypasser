@@ -1,5 +1,5 @@
 {
-  "name": "content-embedding-system-ui",
+  "name": "content-embedding-system",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.1.1",
     "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 {
-  "name": "Content Embedding System UI",
-  "description": "A frontend UI to configure and simulate a server-side content embedding system. Users can map local paths to target URLs and view a simulation of how the backend would fetch and display the content.",
+  "name": "Content Embedding System",
+  "description": "A simple application to create dynamic routes that embed content from other URLs. Mappings are stored locally to simulate a backend service.",
   "requestFramePermissions": []
 }
