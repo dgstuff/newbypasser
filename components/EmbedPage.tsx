@@ -46,11 +46,13 @@ const EmbedPage: React.FC = () => {
     const fetchContent = async () => {
       setFetchState('fetching');
       try {
-        // Using a public CORS proxy to simulate a server-side request.
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(mapping.targetUrl)}`;
+        // Use the new internal serverless function as a proxy
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(mapping.targetUrl)}`;
         const response = await fetch(proxyUrl);
+        
         if (!response.ok) {
-          throw new Error(`Failed to fetch content: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch content via proxy: ${response.status} ${response.statusText}. Response: ${errorText}`);
         }
         let html = await response.text();
 
