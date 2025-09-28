@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/embed.js", "destination": "/api/embed" },
+    {
+      "source": "/:path((?!api/|.*\\.).*)",
+      "destination": "/api/redirect"
+    }
+  ]
+}
