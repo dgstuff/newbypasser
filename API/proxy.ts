@@ -1,57 +1,54 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse,
+  req: NextApiRequest,
+  res: NextApiResponse
 ) {
-  // Set CORS headers to allow the frontend to access this API
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight OPTIONS request for CORS
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', ['GET']);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
-  
-  const url = req.query.url as string;
 
-  if (!url) {
+  const { url } = req.query;
+
+  if (typeof url !== 'string' || !url) {
     return res.status(400).json({ error: 'URL parameter is required' });
   }
 
+  let targetUrl: URL;
   try {
-    new URL(url);
+    targetUrl = new URL(url);
   } catch (error) {
     return res.status(400).json({ error: 'Invalid URL provided' });
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl.toString(), {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'Referer': targetUrl.origin,
       },
-      // Vercel might follow redirects automatically, but being explicit can help
-      redirect: 'follow', 
     });
 
     if (!response.ok) {
-      return res.status(response.status).send(`Failed to fetch from upstream: ${response.statusText}`);
+      const errorBody = await response.text();
+      res.status(response.status).send(errorBody);
+      return;
     }
-
-    const contentType = response.headers.get('content-type') || 'text/html';
-    const body = await response.text();
-
-    res.setHeader('Content-Type', contentType);
-    res.status(200).send(body);
+    
+    const contentType = response.headers.get('content-type');
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+    
+    // Use arrayBuffer to correctly handle all content types (text, images, etc.)
+    const bodyBuffer = await response.arrayBuffer();
+    res.status(200).send(Buffer.from(bodyBuffer));
 
   } catch (error) {
-    console.error('[PROXY_ERROR]', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch content from the target URL.', 
-      details: error instanceof Error ? error.message : 'An unknown error occurred.' 
-    });
+    console.error('Proxy request failed:', error);
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    res.status(500).json({ error: 'Failed to fetch from target URL.', details: message });
   }
 }
