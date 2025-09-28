@@ -5,6 +5,7 @@ interface MappingsContextType {
   mappings: Mapping[];
   addMapping: (mapping: Mapping) => void;
   basePath: string;
+  isLoading: boolean;
 }
 
 const MappingsContext = createContext<MappingsContextType | undefined>(undefined);
@@ -14,6 +15,7 @@ const LOCAL_STORAGE_KEY = 'content-embedder-mappings';
 export const MappingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [basePath, setBasePath] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -23,18 +25,22 @@ export const MappingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
     } catch (error) {
       console.error("Failed to load mappings from local storage", error);
+    } finally {
+      setIsLoading(false);
     }
     
     setBasePath(`${window.location.origin}${window.location.pathname}#`);
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mappings));
-    } catch (error) {
-      console.error("Failed to save mappings to local storage", error);
+    if (!isLoading) {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mappings));
+        } catch (error) {
+            console.error("Failed to save mappings to local storage", error);
+        }
     }
-  }, [mappings]);
+  }, [mappings, isLoading]);
 
   const addMapping = useCallback((newMapping: Mapping) => {
     const sanitizedPath = newMapping.path.replace(/^\/|\/$/g, '');
@@ -57,7 +63,7 @@ export const MappingsProvider: React.FC<{ children: ReactNode }> = ({ children }
   }, []);
 
   return (
-    <MappingsContext.Provider value={{ mappings, addMapping, basePath }}>
+    <MappingsContext.Provider value={{ mappings, addMapping, basePath, isLoading }}>
       {children}
     </MappingsContext.Provider>
   );
